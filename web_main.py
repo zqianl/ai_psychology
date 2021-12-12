@@ -30,12 +30,19 @@ def verification_token(request):
                 xml_str = request.data
                 print("Post wx_data is: ", xml_str)
                 rec_msg = receive.parse_xml(xml_str)
-                if isinstance(rec_msg, receive.Msg) and rec_msg.MsgType == 'text':
+                if isinstance(rec_msg, receive.Msg):
                     to_user = rec_msg.FromUserName
                     from_user = rec_msg.ToUserName
-                    content = "test"
-                    reply_msg = reply.TextMsg(to_user, from_user, content)
-                    return reply_msg.send()
+                    if rec_msg.MsgType == "text":
+                        content = rec_msg.Content.decode('utf-8')
+                        reply_msg = reply.TextMsg(to_user, from_user, content)
+                        return reply_msg.send()
+                    if rec_msg.MsgType == "image":
+                        mediaId = rec_msg.MediaId
+                        reply_msg = reply.ImageMsg(to_user, from_user, mediaId)
+                        return reply_msg.send()
+                    else:
+                        return reply.Msg().send()
                 else:
                     print("暂且不处理")
                     return "success"
