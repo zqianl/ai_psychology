@@ -3,8 +3,53 @@ from hashlib import sha1
 from flask import Flask, request, abort, Response
 import reply
 import receive
+import requests
+import json
+import time
 
 app = Flask(__name__)
+
+
+def wu_dao_generate(query):
+    '''
+    悟道文本生成
+    '''
+    API_KEY = "mAmIxX/F45vUpL99X0aBitZMN3WOsafVJgYDdI0dSkql+ouHEsMcTg=="  # 从悟道开发平台获取
+    API_SECRET = "ajF+8ga8fJq3670bq3yprgFZ9k9Ehlfza8Va7AFkCuCZClvPP0DWFg=="
+    KEY = "queue2"  # 队列名称，默认queue1
+    # CONTENT = "问题：程序员情商高吗？答案："  # 文本内容
+    CONTENT = "问题：" + query + "答案："  # 文本内容
+    CONCURRENCY = 10  # 并发数
+    TYPE = "sentence"  # para,sentence
+    request_url = "https://pretrain.aminer.cn/api/v1/"
+    api = 'generate'
+
+    # 指定请求参数格式为json
+    headers = {'Content-Type': 'application/json'}
+    request_url = request_url + api
+    data = {
+        "key": KEY,
+        "content": CONTENT,
+        "concurrency": CONCURRENCY,
+        "type": TYPE,
+        "apikey": API_KEY,
+        "apisecret": API_SECRET
+    }
+    response = requests.post(request_url, headers=headers, data=json.dumps(data))
+    if response:
+        while "output" not in response.json()["result"]:
+            time.sleep(10)
+            response = requests.get(request_url)
+        output = response.json()["result"]["output"]
+        answer = ""
+        for index, content in enumerate(output):
+            if index != len(output):
+                answer += str(index) + "." + content[0] + "\n"
+            else:
+                answer += str(index) + "." + content[0]
+        return answer
+    else:
+        return "悟道生成失败"
 
 
 def verification_token(request):
@@ -34,7 +79,8 @@ def verification_token(request):
                     to_user = rec_msg.FromUserName
                     from_user = rec_msg.ToUserName
                     if rec_msg.MsgType == "text":
-                        content = rec_msg.Content.decode('utf-8')
+                        # content = rec_msg.Content.decode('utf-8')
+                        content = wu_dao_generate(rec_msg.Content.decode('utf-8'))
                         reply_msg = reply.TextMsg(to_user, from_user, content)
                         return reply_msg.send()
                     if rec_msg.MsgType == "image":
